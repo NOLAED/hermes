@@ -1,4 +1,4 @@
 fastapi==0.123.9
 hypercorn==0.14.4
-elevenlabs==1.94.1
+elevenlabs==2.25.0
 python-dotenv==1.0.1
