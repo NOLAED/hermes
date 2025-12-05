@@ -2,3 +2,4 @@ fastapi==0.123.9
 hypercorn==0.14.4
 elevenlabs==2.25.0
 python-dotenv==1.0.1
+PyJWT==2.10.1
