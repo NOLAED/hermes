@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import jwt
 
 from typing import Annotated
+from s3_service import upload_audio_to_s3
 
 
 # Load environment variables
@@ -16,6 +17,7 @@ load_dotenv()
 
 app = FastAPI()
 JWT_KEY = os.getenv('JWT_KEY')
+S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
 
 @app.get("/")
 async def root():
@@ -78,9 +80,24 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
                     "Content-Disposition": "attachment; filename=tts_output.mp3"
                 }
             )
-        else:  # format == "url"
-            # Placeholder for URL format (to be implemented later)
-            return {"message": "URL format not yet implemented", "audio_size": len(audio_bytes)}
+        elif req_body.format == "url":
+            # Upload to S3 and return presigned URL with metadata
+            if not S3_BUCKET_NAME:
+                raise HTTPException(status_code=500, detail="S3_BUCKET_NAME not configured")
+
+            result = upload_audio_to_s3(
+                audio_bytes=audio_bytes,
+                bucket_name=S3_BUCKET_NAME,
+                filename_download="tts_output.mp3",
+                expiration=3600  # 1 hour
+            )
+
+            if not result:
+                raise HTTPException(status_code=500, detail="Failed to upload to S3")
+
+            return result
+        else:
+            raise HTTPException(status_code=403, detail="Unknown format") 
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ElevenLabs API error: {str(e)}")
