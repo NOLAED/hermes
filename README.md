@@ -1,21 +1,19 @@
 ---
-title: Flask
-description: A popular minimal server framework for Python
+title: FastAPI
+description: A modern, fast web framework for building APIs with Python
 tags:
   - python
-  - flask
+  - fastapi
 ---
 
-# Python Flask Example
+# Python FastAPI Example
 
-This is a [Flask](https://flask.palletsprojects.com/en/1.1.x/) app that serves a simple JSON response.
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/zUcpux)
+This is a [FastAPI](https://fastapi.tiangolo.com/) app that serves a simple JSON response.
 
 ## ✨ Features
 
 - Python
-- Flask
+- FastAPI
 
 ## 💁‍♀️ How to use
 
