@@ -63,8 +63,8 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
         audio_generator = client.text_to_speech.convert(
             voice_id=voice_id,
             text=req_body.text,
-            model_id="eleven_multilingual_v2",  # Supports Spanish
-            output_format="mp3_22050_32"  
+            model_id="eleven_multilingual_v2"  # Supports Spanish
+            #output_format="mp3_22050_32"  
         )
 
         # Convert generator to bytes
