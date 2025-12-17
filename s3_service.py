@@ -69,7 +69,7 @@ def upload_audio_to_s3(audio_bytes: bytes, bucket_name: str, filename_download: 
             "type": "audio/mp3",
             "created_on": datetime.now(timezone.utc).isoformat(),
             "filesize": len(audio_bytes),
-            "id": filename,
+            "id": filename_download,
             "filename_disk": filename,
             "filename_download": filename 
         }
