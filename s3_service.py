@@ -23,7 +23,7 @@ def create_presigned_url(bucket_name, object_name, expiration=600, method="put_o
         return None
 
 
-def upload_audio_to_s3(audio_bytes: bytes, bucket_name: str, filename_download: str = "tts_output.mp3", expiration: int = 3600):
+def upload_audio_to_s3(audio_bytes: bytes, bucket_name: str, filename_download: str, expiration: int = 3600):
     """
     Upload audio bytes to S3 and return metadata with presigned URL.
 
@@ -41,12 +41,12 @@ def upload_audio_to_s3(audio_bytes: bytes, bucket_name: str, filename_download: 
         # Generate UUID v4 for file ID
 
         # Create filename_disk (UUID + extension)
-        filename_disk = filename_download
+        filename = f"{filename_download}_es.mp3"
 
         # Upload to S3
         s3_client.put_object(
             Bucket=bucket_name,
-            Key=filename_disk,
+            Key=filename,
             Body=audio_bytes,
             ContentType="audio/mp3"
         )
@@ -54,7 +54,7 @@ def upload_audio_to_s3(audio_bytes: bytes, bucket_name: str, filename_download: 
         # Generate presigned GET URL
         presigned_url = create_presigned_url(
             bucket_name=bucket_name,
-            object_name=filename_disk,
+            object_name=filename,
             expiration=expiration,
             method="get_object"
         )
@@ -65,14 +65,13 @@ def upload_audio_to_s3(audio_bytes: bytes, bucket_name: str, filename_download: 
         # Build response payload
         return {
             "presignedurl": presigned_url,
-            "filename": filename_download,
             "storage": "s3",
             "type": "audio/mp3",
             "created_on": datetime.now(timezone.utc).isoformat(),
             "filesize": len(audio_bytes),
-            "id": filename_download,
-            "filename_disk": filename_disk,
-            "filename_download": filename_download
+            "id": filename,
+            "filename_disk": filename,
+            "filename_download": filename 
         }
 
     except ClientError as e:

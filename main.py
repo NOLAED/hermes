@@ -123,7 +123,7 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
                 upload_result = upload_audio_to_s3(
                     audio_bytes=result["audio_bytes"],
                     bucket_name=S3_BUCKET_NAME,
-                    filename_download=f"{result['name']}_es.mp3",
+                    filename_download=result['name'],
                     expiration=3600  # 1 hour
                 )
 
