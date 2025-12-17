@@ -111,8 +111,7 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
             media_type="application/zip",
             headers={
                 "Content-Disposition": "attachment; filename=tts_batch.zip"
-            }
-        )
+            })
     elif req_body.format == "url":
         # Upload to S3 and return presigned URLs with metadata
         if not S3_BUCKET_NAME:
@@ -147,5 +146,4 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
         return results
     else:
         raise HTTPException(status_code=403, detail="Unknown format") 
-
 
