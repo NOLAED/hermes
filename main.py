@@ -1,3 +1,4 @@
+from uuid import uuid4
 from fastapi import FastAPI, HTTPException, Request, Header
 from fastapi.responses import StreamingResponse
 from jwt.exceptions import DecodeError
@@ -27,7 +28,7 @@ async def root():
 
 
 class TTSEntry(BaseModel):
-    name: str
+    name: str | None
     text: str
     voice_id: str | None = None
 
@@ -64,6 +65,7 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
     audio_results = []
 
     for tts_entry in req_body.texts:
+        ttsname = uuid4() if not tts_entry.name else tts_entry.name
         # Use provided voice_id or default to a Spanish voice
         voice_id = tts_entry.voice_id or "ThT5KcBeYPX3keUQqHPh"  # Default: Paula (Spanish)
         try:
@@ -81,7 +83,7 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
             # Store successful result
             audio_results.append({
                 "success": True,
-                "name": tts_entry.name,
+                "name": ttsname,
                 "audio_bytes": audio_bytes
             })
 
@@ -89,7 +91,7 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
             # Store failure result
             audio_results.append({
                 "success": False,
-                "name": tts_entry.name,
+                "name": ttsname,
                 "message": f"ElevenLabs API error: {str(e)}"
             })
 
