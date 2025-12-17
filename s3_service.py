@@ -39,11 +39,9 @@ def upload_audio_to_s3(audio_bytes: bytes, bucket_name: str, filename_download: 
     """
     try:
         # Generate UUID v4 for file ID
-        file_id = str(uuid.uuid4())
 
         # Create filename_disk (UUID + extension)
-        file_extension = ".mp3"
-        filename_disk = f"{file_id}{file_extension}"
+        filename_disk = filename_download
 
         # Upload to S3
         s3_client.put_object(
@@ -72,7 +70,7 @@ def upload_audio_to_s3(audio_bytes: bytes, bucket_name: str, filename_download: 
             "type": "audio/mp3",
             "created_on": datetime.now(timezone.utc).isoformat(),
             "filesize": len(audio_bytes),
-            "id": file_id,
+            "id": filename_download,
             "filename_disk": filename_disk,
             "filename_download": filename_download
         }
