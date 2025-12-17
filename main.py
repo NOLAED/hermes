@@ -2,11 +2,13 @@ from fastapi import FastAPI, HTTPException, Request, Header
 from fastapi.responses import StreamingResponse
 from jwt.exceptions import DecodeError
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, List
 import elevenlabs
 import os
 from dotenv import load_dotenv
 import jwt
+import zipfile
+from io import BytesIO
 
 from typing import Annotated
 from s3_service import upload_audio_to_s3
@@ -24,11 +26,14 @@ async def root():
     return {"greeting": "Hello, World!", "message": "Welcome to FastAPI!"}
 
 
+class TTSEntry(BaseModel):
+    name: str
+    text: str
+    voice_id: str | None = None
 
 class TTSRequest(BaseModel):
-    text: str
     format: Literal["url"] | Literal["file"]
-    voice_id: str | None = None  # Optional: Spanish voice ID from ElevenLabs
+    texts: List[TTSEntry]
 
 @app.post('/api/v1/tts')
 async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(convert_underscores=True) ):
@@ -53,53 +58,94 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
         raise HTTPException(status_code=403, detail="Not enough permissions")
         
     # Initialize ElevenLabs client
-    client = elevenlabs.ElevenLabs(api_key=api_key)
+    client = elevenlabs.AsyncElevenLabs(api_key=api_key)
 
-    # Use provided voice_id or default to a Spanish voice
-    voice_id = req_body.voice_id or "ThT5KcBeYPX3keUQqHPh"  # Default: Paula (Spanish)
+    # Collect all generated audio with metadata
+    audio_results = []
 
-    try:
-        # Generate audio using ElevenLabs
-        audio_generator = client.text_to_speech.convert(
-            voice_id=voice_id,
-            text=req_body.text,
-            model_id="eleven_multilingual_v2",  # Supports Spanish
-            output_format="mp3_22050_32"  
+    for tts_entry in req_body.texts:
+        # Use provided voice_id or default to a Spanish voice
+        voice_id = tts_entry.voice_id or "ThT5KcBeYPX3keUQqHPh"  # Default: Paula (Spanish)
+        try:
+            # Generate audio using ElevenLabs
+            audio_generator = client.text_to_speech.convert(
+                voice_id=voice_id,
+                text=tts_entry.text,
+                model_id="eleven_multilingual_v2",  # Supports Spanish
+                output_format="mp3_22050_32"
+            )
+
+            # Convert generator to bytes
+            audio_bytes = b"".join([b async for b in audio_generator])
+
+            # Store successful result
+            audio_results.append({
+                "success": True,
+                "name": tts_entry.name,
+                "audio_bytes": audio_bytes
+            })
+
+        except Exception as e:
+            # Store failure result
+            audio_results.append({
+                "success": False,
+                "name": tts_entry.name,
+                "message": f"ElevenLabs API error: {str(e)}"
+            })
+
+    # Handle response based on format
+    if req_body.format == "file":
+        # Create a zip file with all successful audio files
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for result in audio_results:
+                if result["success"]:
+                    filename = f"{result['name']}_es.mp3"
+                    zip_file.writestr(filename, result["audio_bytes"])
+
+        zip_buffer.seek(0)
+
+        # Return zip file as streaming response
+        return StreamingResponse(
+            iter([zip_buffer.getvalue()]),
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": "attachment; filename=tts_batch.zip"
+            }
         )
+    elif req_body.format == "url":
+        # Upload to S3 and return presigned URLs with metadata
+        if not S3_BUCKET_NAME:
+            raise HTTPException(status_code=500, detail="S3_BUCKET_NAME not configured")
 
-        # Convert generator to bytes
-        audio_bytes = b"".join(audio_generator)
+        results = []
+        for result in audio_results:
+            if result["success"]:
+                upload_result = upload_audio_to_s3(
+                    audio_bytes=result["audio_bytes"],
+                    bucket_name=S3_BUCKET_NAME,
+                    filename_download=f"{result['name']}_es.mp3",
+                    expiration=3600  # 1 hour
+                )
 
-        # Handle response based on format
-        if req_body.format == "file":
-            # Return audio bytes as streaming response
-            return StreamingResponse(
-                iter([audio_bytes]),
-                media_type="audio/mp3",
-                headers={
-                    "Content-Disposition": "attachment; filename=tts_output.mp3"
-                }
-            )
-        elif req_body.format == "url":
-            # Upload to S3 and return presigned URL with metadata
-            if not S3_BUCKET_NAME:
-                raise HTTPException(status_code=500, detail="S3_BUCKET_NAME not configured")
+                if upload_result:
+                    results.append({
+                        "success": True,
+                        "payload": upload_result
+                    })
+                else:
+                    results.append({
+                        "success": False,
+                        "message": "Failed to upload to S3"
+                    })
+            else:
+                results.append({
+                    "success": False,
+                    "message": result["message"]
+                })
 
-            result = upload_audio_to_s3(
-                audio_bytes=audio_bytes,
-                bucket_name=S3_BUCKET_NAME,
-                filename_download="tts_output.mp3",
-                expiration=3600  # 1 hour
-            )
-
-            if not result:
-                raise HTTPException(status_code=500, detail="Failed to upload to S3")
-
-            return result
-        else:
-            raise HTTPException(status_code=403, detail="Unknown format") 
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"ElevenLabs API error: {str(e)}")
+        return results
+    else:
+        raise HTTPException(status_code=403, detail="Unknown format") 
 
 

@@ -32,11 +32,12 @@ ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
 # Required: JWT secret key for token signing
 JWT_KEY=your_jwt_secret_key_here
 
-# Required: AWS S3 bucket name for audio storage
-S3_BUCKET_NAME=your_s3_bucket_name_here
 
-# Required: AWS region for S3
+# Optional: To active the 'url' format which will upload to s3
 AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=<>
+AWS_SECRET_ACCESS_KEY=<>
+S3_BUCKET_NAME=<>
 ```
 
 **Important:** Never commit your `.env` file to version control. It should be listed in `.gitignore`.
