@@ -31,6 +31,7 @@ class TTSEntry(BaseModel):
     name: str | None = None
     text: str
     voice_id: str | None = None
+    custom_id: str | None = None
 
 class TTSRequest(BaseModel):
     format: Literal["url"] | Literal["file"]
@@ -66,6 +67,8 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
 
     for tts_entry in req_body.texts:
         ttsname = uuid4() if not tts_entry.name else tts_entry.name
+        # Set custom_id to default to name if not provided
+        custom_id = tts_entry.custom_id or tts_entry.name
         # Use provided voice_id or default to a Spanish voice
         voice_id = tts_entry.voice_id or "ThT5KcBeYPX3keUQqHPh"  # Default: Paula (Spanish)
         try:
@@ -84,6 +87,7 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
             audio_results.append({
                 "success": True,
                 "name": ttsname,
+                "custom_id": custom_id,
                 "audio_bytes": audio_bytes
             })
 
@@ -92,6 +96,7 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
             audio_results.append({
                 "success": False,
                 "name": ttsname,
+                "custom_id": custom_id,
                 "message": f"ElevenLabs API error: {str(e)}"
             })
 
@@ -132,16 +137,19 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
                 if upload_result:
                     results.append({
                         "success": True,
+                        "custom_id": result["custom_id"],
                         "payload": upload_result
                     })
                 else:
                     results.append({
                         "success": False,
+                        "custom_id": result["custom_id"],
                         "message": "Failed to upload to S3"
                     })
             else:
                 results.append({
                     "success": False,
+                    "custom_id": result["custom_id"],
                     "message": result["message"]
                 })
 

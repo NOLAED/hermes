@@ -41,3 +41,88 @@ S3_BUCKET_NAME=<>
 ```
 
 **Important:** Never commit your `.env` file to version control. It should be listed in `.gitignore`.
+
+## 📡 API Documentation
+
+### POST `/api/v1/tts`
+
+Generate text-to-speech audio from text using ElevenLabs.
+
+#### Authentication
+
+Requires a JWT token with `admin_access: true` passed in the `X-API-Key` header.
+
+#### Request Body
+
+```json
+{
+  "format": "url" | "file",
+  "texts": [
+    {
+      "name": "string (optional)",
+      "text": "string (required)",
+      "voice_id": "string (optional)",
+      "custom_id": "string (optional)"
+    }
+  ]
+}
+```
+
+#### Parameters
+
+- **format**: Output format
+  - `"url"`: Upload to S3 and return presigned URLs
+  - `"file"`: Return a ZIP file containing all audio files
+
+- **texts**: Array of text entries to convert to speech
+  - **name** (optional): Filename for the generated audio (defaults to UUID if not provided)
+  - **text** (required): The text to convert to speech
+  - **voice_id** (optional): ElevenLabs voice ID (defaults to "ThT5KcBeYPX3keUQqHPh" - Paula Spanish voice)
+  - **custom_id** (optional): User-supplied identifier to help distinguish one file from another. **Defaults to the value of `name` if not provided**. This field is returned in all API responses to help you track which result corresponds to which request.
+
+#### Response
+
+**Format: "url"**
+
+Returns an array of results with presigned S3 URLs:
+
+```json
+[
+  {
+    "success": true,
+    "custom_id": "my-custom-identifier",
+    "payload": {
+      "url": "https://...",
+      "key": "...",
+      "filename": "..."
+    }
+  }
+]
+```
+
+**Format: "file"**
+
+Returns a ZIP file (`application/zip`) containing all generated audio files.
+
+#### Example Usage
+
+```bash
+curl -X POST http://localhost:8000/api/v1/tts \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_jwt_token" \
+  -d '{
+    "format": "url",
+    "texts": [
+      {
+        "name": "greeting",
+        "text": "Hola, ¿cómo estás?",
+        "custom_id": "user-123-greeting"
+      },
+      {
+        "name": "farewell",
+        "text": "Hasta luego",
+        "custom_id": "user-123-farewell"
+      }
+    ]
+  }'
+```
