@@ -28,7 +28,7 @@ async def root():
 
 
 class TTSEntry(BaseModel):
-    name: str | None
+    name: str | None = None
     text: str
     voice_id: str | None = None
 
