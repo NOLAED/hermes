@@ -12,7 +12,8 @@ import zipfile
 from io import BytesIO
 
 from typing import Annotated
-from s3_service import upload_audio_to_s3
+from s3_service import upload_audio_to_s3, download_file_from_s3, upload_vtt_to_s3
+from vtt_service import transcribe_to_vtt
 
 
 # Load environment variables
@@ -155,5 +156,74 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
 
         return results
     else:
-        raise HTTPException(status_code=403, detail="Unknown format") 
+        raise HTTPException(status_code=403, detail="Unknown format")
+
+
+class VTTRequest(BaseModel):
+    format: Literal["url"] | Literal["file"]
+    title: str
+    filename_download: str
+    type: str
+    storage: str
+    filename_disk: str
+    filesize: int
+    uploaded_on: str
+
+@app.post('/api/v1/vtt')
+async def vtt(request: Request, req_body: VTTRequest, x_api_key: str = Header(convert_underscores=True)):
+    if not x_api_key:
+        raise HTTPException(status_code=403, detail="No auth token passed")
+
+    try:
+        decodedtoken = jwt.decode(x_api_key, key=JWT_KEY, algorithms='HS256')
+    except jwt.exceptions.DecodeError:
+        raise HTTPException(status_code=403, detail="Invalid token")
+
+    if not decodedtoken:
+        raise HTTPException(status_code=500, detail="Something went wrong")
+
+    if not decodedtoken.get('admin_access', False):
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    if not os.getenv("OPENAI_API_KEY"):
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured")
+
+    if not S3_BUCKET_NAME:
+        raise HTTPException(status_code=500, detail="S3_BUCKET_NAME not configured")
+
+    # Download audio from S3
+    try:
+        audio_bytes = download_file_from_s3(S3_BUCKET_NAME, req_body.filename_disk)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Failed to download from S3: {str(e)}")
+
+    # Transcribe to VTT
+    try:
+        vtt_content = await transcribe_to_vtt(audio_bytes, req_body.filename_download)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+
+    vtt_bytes = vtt_content.encode("utf-8")
+    vtt_filename =req_body.filename_download
+
+    if req_body.format == "file":
+        return StreamingResponse(
+            iter([vtt_bytes]),
+            media_type="text/vtt",
+            headers={"Content-Disposition": f"attachment; filename={vtt_filename}"},
+        )
+    elif req_body.format == "url":
+        upload_result = upload_vtt_to_s3(
+            vtt_bytes=vtt_bytes,
+            bucket_name=S3_BUCKET_NAME,
+            filename=vtt_filename,
+            expiration=3600,
+        )
+
+        if not upload_result:
+            raise HTTPException(status_code=500, detail="Failed to upload VTT to S3")
+
+        return {"success": True, "payload": upload_result}
+    else:
+        raise HTTPException(status_code=403, detail="Unknown format")
 

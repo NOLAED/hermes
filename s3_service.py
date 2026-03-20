@@ -9,6 +9,45 @@ load_dotenv()
 
 s3_client = boto3.client("s3", region_name=os.getenv("AWS_REGION"))
 
+def download_file_from_s3(bucket_name: str, key: str) -> bytes:
+    response = s3_client.get_object(Bucket=bucket_name, Key=key)
+    return response["Body"].read()
+
+
+def upload_vtt_to_s3(vtt_bytes: bytes, bucket_name: str, filename: str, expiration: int = 3600):
+    try:
+        s3_client.put_object(
+            Bucket=bucket_name,
+            Key=filename,
+            Body=vtt_bytes,
+            ContentType="text/vtt",
+        )
+
+        presigned_url = create_presigned_url(
+            bucket_name=bucket_name,
+            object_name=filename,
+            expiration=expiration,
+            method="get_object",
+        )
+
+        if not presigned_url:
+            return None
+
+        return {
+            "presignedurl": presigned_url,
+            "storage": "s3",
+            "type": "text/vtt",
+            "created_on": datetime.now(timezone.utc).isoformat(),
+            "filesize": len(vtt_bytes),
+            "id": uuid.uuid4(),
+            "filename_disk": filename,
+            "filename_download": filename,
+        }
+    except ClientError as e:
+        print(f"S3 upload error: {e}")
+        return None
+
+
 def create_presigned_url(bucket_name, object_name, expiration=600, method="put_object"):
     try:
         response = s3_client.generate_presigned_url(
