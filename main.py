@@ -161,12 +161,8 @@ async def tts(request: Request, req_body: TTSRequest, x_api_key:str = Header(con
 
 class VTTRequest(BaseModel):
     format: Literal["url"] | Literal["file"]
-    title: str
-    filename_download: str
     type: str
-    storage: str
     filename_disk: str
-    filesize: int
     uploaded_on: str
 
 @app.post('/api/v1/vtt')
@@ -199,12 +195,12 @@ async def vtt(request: Request, req_body: VTTRequest, x_api_key: str = Header(co
 
     # Transcribe to VTT
     try:
-        vtt_content = await transcribe_to_vtt(audio_bytes, req_body.filename_download)
+        vtt_content = await transcribe_to_vtt(audio_bytes, req_body.filename_disk)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
     vtt_bytes = vtt_content.encode("utf-8")
-    vtt_filename =req_body.filename_download
+    vtt_filename =req_body.filename_disk
 
     if req_body.format == "file":
         return StreamingResponse(
