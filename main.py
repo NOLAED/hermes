@@ -200,7 +200,7 @@ async def vtt(request: Request, req_body: VTTRequest, x_api_key: str = Header(co
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
     vtt_bytes = vtt_content.encode("utf-8")
-    vtt_filename =req_body.filename_disk
+    vtt_filename = os.path.splitext(req_body.filename_disk)[0] + ".vtt"
 
     if req_body.format == "file":
         return StreamingResponse(
