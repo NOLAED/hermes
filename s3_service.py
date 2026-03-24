@@ -1,3 +1,5 @@
+import logging
+
 import boto3
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
@@ -5,23 +7,31 @@ import os
 import uuid
 from datetime import datetime, timezone
 
+logger = logging.getLogger("hermes.s3")
+
 load_dotenv()
 
 s3_client = boto3.client("s3", region_name=os.getenv("AWS_REGION"))
 
 def download_file_from_s3(bucket_name: str, key: str) -> bytes:
+    logger.info("Downloading from S3: bucket=%s, key=%s", bucket_name, key)
     response = s3_client.get_object(Bucket=bucket_name, Key=key)
-    return response["Body"].read()
+    data = response["Body"].read()
+    logger.info("Downloaded %d bytes from S3: %s", len(data), key)
+    return data
 
 
 def upload_vtt_to_s3(vtt_bytes: bytes, bucket_name: str, filename: str, expiration: int = 3600):
     try:
+        logger.info("Uploading VTT to S3: bucket=%s, key=%s, size=%d bytes", bucket_name, filename, len(vtt_bytes))
+
         s3_client.put_object(
             Bucket=bucket_name,
             Key=filename,
             Body=vtt_bytes,
             ContentType="text/vtt",
         )
+        logger.info("VTT uploaded to S3 successfully: %s", filename)
 
         presigned_url = create_presigned_url(
             bucket_name=bucket_name,
@@ -31,6 +41,7 @@ def upload_vtt_to_s3(vtt_bytes: bytes, bucket_name: str, filename: str, expirati
         )
 
         if not presigned_url:
+            logger.error("Failed to generate presigned URL for VTT: %s", filename)
             return None
 
         return {
@@ -44,7 +55,7 @@ def upload_vtt_to_s3(vtt_bytes: bytes, bucket_name: str, filename: str, expirati
             "filename_download": filename,
         }
     except ClientError as e:
-        print(f"S3 upload error: {e}")
+        logger.error("S3 VTT upload error for %s: %s", filename, e)
         return None
 
 
@@ -58,7 +69,7 @@ def create_presigned_url(bucket_name, object_name, expiration=600, method="put_o
 
         return response
     except ClientError as e:
-        print(e)
+        logger.error("Failed to generate presigned URL: %s", e)
         return None
 
 
@@ -114,5 +125,5 @@ def upload_audio_to_s3(audio_bytes: bytes, bucket_name: str, filename_download: 
         }
 
     except ClientError as e:
-        print(f"S3 upload error: {e}")
+        logger.error("S3 audio upload error for %s: %s", filename, e)
         return None

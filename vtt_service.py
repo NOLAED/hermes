@@ -1,9 +1,12 @@
+import logging
 import mimetypes
 import os
 import re
 import tempfile
 
 from openai import NOT_GIVEN, AsyncOpenAI
+
+logger = logging.getLogger("hermes.vtt")
 
 CAPITALIZATION_RULES = {
     "student module notebook": "Student Module Notebook",
@@ -60,12 +63,14 @@ def process_vtt_content(vtt_content: str) -> str:
 
 async def transcribe_to_vtt(audio_bytes: bytes, filename: str, language: str | None=None) -> str:
     mime_type = mimetypes.guess_type(filename)[0] or "audio/mpeg"
+    logger.info("Transcribing %s (%d bytes, mime=%s, language=%s)", filename, len(audio_bytes), mime_type, language or "auto")
 
     with tempfile.NamedTemporaryFile(suffix=os.path.splitext(filename)[1], delete=True) as tmp:
         tmp.write(audio_bytes)
         tmp.flush()
         tmp.seek(0)
 
+        logger.info("Calling OpenAI Whisper API for %s", filename)
         transcript = await client.audio.transcriptions.create(
             model="whisper-1",
             file=(filename, tmp, mime_type),
@@ -73,4 +78,7 @@ async def transcribe_to_vtt(audio_bytes: bytes, filename: str, language: str | N
             response_format="vtt",
         )
 
-    return process_vtt_content(transcript)
+    logger.info("Whisper transcription complete for %s, applying capitalization rules", filename)
+    result = process_vtt_content(transcript)
+    logger.info("VTT processing complete for %s (%d chars)", filename, len(result))
+    return result
