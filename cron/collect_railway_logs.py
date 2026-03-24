@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
-RAILWAY_API_TOKEN = os.getenv("RAILWAY_TOKEN")
+RAILWAY_API_TOKEN = os.getenv("RAILWAY_API_TOKEN")
 # RAILWAY_PROJECT_ID and RAILWAY_ENVIRONMENT_ID are auto-injected by Railway.
 # TARGET_SERVICE_ID must be set manually — it's the main hermes service ID,
 # not the cron service's own TARGET_SERVICE_ID.
