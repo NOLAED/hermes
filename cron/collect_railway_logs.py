@@ -38,6 +38,7 @@ def graphql_request(query: str, variables: dict) -> dict:
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {RAILWAY_API_TOKEN}",
+        "User-Agent": "hermes-log-collector/1.0",
     }
     req = urllib.request.Request(RAILWAY_API_URL, data=body, headers=headers)
 
