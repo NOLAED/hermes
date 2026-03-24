@@ -127,14 +127,14 @@ def fetch_deployment_logs(deployment_id: str, start_time: str) -> list[dict]:
     return data.get("deploymentLogs", [])
 
 
-def format_runtime_logs(logs: list[dict]) -> str:
+def format_runtime_logs(deployment_id:str, logs: list[dict]) -> str:
     """Format runtime logs as plain text: TIMESTAMP [SEVERITY] MESSAGE"""
     lines = []
     for log in logs:
         ts = log.get("timestamp", "")
         severity = log.get("severity", "INFO")
         message = log.get("message", "")
-        lines.append(f"{ts} [{severity}] {message}")
+        lines.append(f"{ts} [{deployment_id}] [{severity}] {message}")
     return "\n".join(lines)
 
 
@@ -187,7 +187,7 @@ def main():
 
     # Format and upload
     if runtime_logs:
-        runtime_text = format_runtime_logs(runtime_logs)
+        runtime_text = format_runtime_logs(deployment_id, runtime_logs)
         runtime_key = f"logs/railway/runtime/{date_path}/runtime-{timestamp_suffix}.log"
         upload_to_s3(runtime_text, runtime_key)
         print(f"Uploaded to s3://{S3_BUCKET_NAME}/{runtime_key}")

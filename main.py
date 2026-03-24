@@ -199,6 +199,9 @@ async def vtt(req_body: VTTRequest, _token: dict = Depends(verify_admin_token)):
     vtt_bytes = vtt_content.encode("utf-8")
     vtt_filename = os.path.splitext(req_body.filename_disk)[0] + ".vtt"
 
+    if vtt_filename == req_body.filename_disk:
+        raise HTTPException(status_code=400, detail="Invalid vtt_filename") 
+
     if req_body.format == "file":
         logger.info("Returning VTT as file download: %s (%d bytes)", vtt_filename, len(vtt_bytes))
         return StreamingResponse(
