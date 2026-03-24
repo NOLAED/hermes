@@ -1,6 +1,6 @@
 """
 Railway log collector — runs as a cron service every 12 hours.
-Fetches runtime and HTTP logs from the Railway GraphQL API and uploads to S3.
+Fetches deployment logs from the Railway GraphQL API and uploads to S3.
 """
 
 import json
@@ -109,7 +109,6 @@ def fetch_deployment_logs(deployment_id: str, start_time: str) -> list[dict]:
     query ($deploymentId: String!, $startDate: DateTime, $limit: Int) {
       deploymentLogs(
         deploymentId: $deploymentId
-        filter: String
         startDate: $startDate
         limit: $limit
       ) {
@@ -128,32 +127,6 @@ def fetch_deployment_logs(deployment_id: str, start_time: str) -> list[dict]:
     return data.get("deploymentLogs", [])
 
 
-def fetch_http_logs(deployment_id: str, start_time: str) -> list[dict]:
-    """Fetch HTTP logs (httpLogs) for a deployment."""
-    query = """
-    query ($deploymentId: String!, $startDate: DateTime, $limit: Int) {
-      httpLogs(
-        deploymentId: $deploymentId
-        startDate: $startDate
-        limit: $limit
-      ) {
-        timestamp
-        method
-        path
-        httpStatus
-        totalDuration
-      }
-    }
-    """
-    variables = {
-        "deploymentId": deployment_id,
-        "startDate": start_time,
-        "limit": LOG_LIMIT,
-    }
-    data = graphql_request(query, variables)
-    return data.get("httpLogs", [])
-
-
 def format_runtime_logs(logs: list[dict]) -> str:
     """Format runtime logs as plain text: TIMESTAMP [SEVERITY] MESSAGE"""
     lines = []
@@ -162,19 +135,6 @@ def format_runtime_logs(logs: list[dict]) -> str:
         severity = log.get("severity", "INFO")
         message = log.get("message", "")
         lines.append(f"{ts} [{severity}] {message}")
-    return "\n".join(lines)
-
-
-def format_http_logs(logs: list[dict]) -> str:
-    """Format HTTP logs as plain text: TIMESTAMP METHOD PATH STATUS DURATION"""
-    lines = []
-    for log in logs:
-        ts = log.get("timestamp", "")
-        method = log.get("method", "")
-        path = log.get("path", "")
-        status = log.get("httpStatus", "")
-        duration = log.get("totalDuration", "")
-        lines.append(f"{ts} {method} {path} {status} {duration}")
     return "\n".join(lines)
 
 
@@ -223,26 +183,16 @@ def main():
 
     # Fetch logs
     runtime_logs = fetch_deployment_logs(deployment_id, start_time)
-    http_logs = fetch_http_logs(deployment_id, start_time)
-    print(f"Fetched {len(runtime_logs)} runtime logs, {len(http_logs)} HTTP logs")
+    print(f"Fetched {len(runtime_logs)} deployment logs")
 
-    # Format and upload runtime logs
+    # Format and upload
     if runtime_logs:
         runtime_text = format_runtime_logs(runtime_logs)
         runtime_key = f"logs/railway/runtime/{date_path}/runtime-{timestamp_suffix}.log"
         upload_to_s3(runtime_text, runtime_key)
-        print(f"Uploaded runtime logs to s3://{S3_BUCKET_NAME}/{runtime_key}")
+        print(f"Uploaded to s3://{S3_BUCKET_NAME}/{runtime_key}")
     else:
-        print("No runtime logs to upload")
-
-    # Format and upload HTTP logs
-    if http_logs:
-        http_text = format_http_logs(http_logs)
-        http_key = f"logs/railway/http/{date_path}/http-{timestamp_suffix}.log"
-        upload_to_s3(http_text, http_key)
-        print(f"Uploaded HTTP logs to s3://{S3_BUCKET_NAME}/{http_key}")
-    else:
-        print("No HTTP logs to upload")
+        print("No deployment logs to upload")
 
     print("Log collection complete.")
 
