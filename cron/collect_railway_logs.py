@@ -106,7 +106,7 @@ def get_latest_deployment_id() -> str | None:
 def fetch_deployment_logs(deployment_id: str, start_time: str) -> list[dict]:
     """Fetch runtime logs (deploymentLogs) for a deployment."""
     query = """
-    query ($deploymentId: String!, $startDate: String!, $limit: Int!) {
+    query ($deploymentId: String!, $startDate: DateTime!, $limit: Int!) {
       deploymentLogs(
         deploymentId: $deploymentId
         startDate: $startDate
@@ -130,7 +130,7 @@ def fetch_deployment_logs(deployment_id: str, start_time: str) -> list[dict]:
 def fetch_http_logs(deployment_id: str, start_time: str) -> list[dict]:
     """Fetch HTTP logs (httpLogs) for a deployment."""
     query = """
-    query ($deploymentId: String!, $startDate: String!, $limit: Int!) {
+    query ($deploymentId: String!, $startDate: DateTime!, $limit: Int!) {
       httpLogs(
         deploymentId: $deploymentId
         startDate: $startDate
