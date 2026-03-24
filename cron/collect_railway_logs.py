@@ -109,6 +109,7 @@ def fetch_deployment_logs(deployment_id: str, start_time: str) -> list[dict]:
     query ($deploymentId: String!, $startDate: DateTime, $limit: Int) {
       deploymentLogs(
         deploymentId: $deploymentId
+        filter: String
         startDate: $startDate
         limit: $limit
       ) {
