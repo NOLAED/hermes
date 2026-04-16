@@ -5,3 +5,4 @@ python-dotenv==1.0.1
 PyJWT==2.10.1
 boto3==1.35.36
 openai==1.60.1
+pydub==0.25.1
